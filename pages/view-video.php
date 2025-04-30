@@ -47,22 +47,71 @@ if(!isset($_SESSION['viewed_videos']) || !in_array($video['id'], $_SESSION['view
     $_SESSION['viewed_videos'][] = $video['id'];
 }
 
-// Handle comment submission
+// Handle comment submission, editing, and deletion
 if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_SESSION['user_id'])) {
-    $comment = trim($_POST['comment'] ?? '');
-    if(!empty($comment)) {
-        $stmt = $conn->prepare("INSERT INTO comments (user_id, video_id, content, created_at) VALUES (:user_id, :video_id, :content, NOW())");
+    if(isset($_POST['comment'])) {
+        // Add new comment
+        $comment = trim($_POST['comment']);
+        if(!empty($comment)) {
+            $stmt = $conn->prepare("INSERT INTO video_comments (user_id, video_id, content) VALUES (:user_id, :video_id, :content)");
+            $stmt->bindParam(":user_id", $_SESSION['user_id']);
+            $stmt->bindParam(":video_id", $video['id']);
+            $stmt->bindParam(":content", $comment);
+            $stmt->execute();
+        }
+    } elseif(isset($_POST['edit_comment'])) {
+        // Edit existing comment
+        $commentId = $_POST['comment_id'];
+        $newContent = trim($_POST['edit_comment']);
+        
+        // Verify comment belongs to current user or video owner
+        $stmt = $conn->prepare("
+            SELECT c.* FROM video_comments c 
+            WHERE c.id = :comment_id 
+            AND (c.user_id = :user_id OR :user_id = :video_owner_id)
+        ");
+        $stmt->bindParam(":comment_id", $commentId);
         $stmt->bindParam(":user_id", $_SESSION['user_id']);
-        $stmt->bindParam(":video_id", $video['id']);
-        $stmt->bindParam(":content", $comment);
+        $stmt->bindParam(":video_owner_id", $video['user_id']);
         $stmt->execute();
+        
+        if($stmt->fetch() && !empty($newContent)) {
+            $stmt = $conn->prepare("UPDATE video_comments SET content = :content WHERE id = :id");
+            $stmt->bindParam(":content", $newContent);
+            $stmt->bindParam(":id", $commentId);
+            $stmt->execute();
+        }
+    } elseif(isset($_POST['delete_comment'])) {
+        // Delete comment
+        $commentId = $_POST['comment_id'];
+        
+        // Verify comment belongs to current user or video owner
+        $stmt = $conn->prepare("
+            SELECT c.* FROM video_comments c 
+            WHERE c.id = :comment_id 
+            AND (c.user_id = :user_id OR :user_id = :video_owner_id)
+        ");
+        $stmt->bindParam(":comment_id", $commentId);
+        $stmt->bindParam(":user_id", $_SESSION['user_id']);
+        $stmt->bindParam(":video_owner_id", $video['user_id']);
+        $stmt->execute();
+        
+        if($stmt->fetch()) {
+            $stmt = $conn->prepare("DELETE FROM video_comments WHERE id = :id");
+            $stmt->bindParam(":id", $commentId);
+            $stmt->execute();
+        }
     }
+    
+    // Redirect to prevent form resubmission
+    header("Location: " . $_SERVER['REQUEST_URI']);
+    exit();
 }
 
 // Get comments
 $stmt = $conn->prepare("
     SELECT c.*, u.name as author_name, u.profile_picture as author_profile, u.gender as author_gender
-    FROM comments c
+    FROM video_comments c
     JOIN users u ON c.user_id = u.id
     WHERE c.video_id = :video_id
     ORDER BY c.created_at DESC
@@ -179,58 +228,91 @@ $relatedVideos = $stmt->fetchAll();
 
                     <div class="space-y-6">
                         <?php foreach($comments as $comment): ?>
-                            <div class="flex space-x-3">
+                            <div class="flex space-x-3" id="comment-<?php echo $comment['id']; ?>">
                                 <div class="flex-shrink-0">
                                     <img src="<?php echo !empty($comment['author_profile']) ? BASE_URL . '/' . $comment['author_profile'] : BASE_URL . '/assets/images/' . ($comment['author_gender'] === 'female' ? 'female.png' : 'male.png'); ?>"
                                         alt="<?php echo htmlspecialchars($comment['author_name']); ?>"
                                         class="w-10 h-10 rounded-full">
                                 </div>
-                                <div>
-                                    <div class="flex items-center space-x-2">
-                                        <p class="font-semibold"><?php echo htmlspecialchars($comment['author_name']); ?></p>
-                                        <span class="text-gray-500 text-sm">•</span>
-                                        <p class="text-gray-500 text-sm">
-                                            <?php echo date('M d, Y', strtotime($comment['created_at'])); ?>
-                                        </p>
+                                <div class="flex-1">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="flex items-center space-x-2">
+                                            <p class="font-semibold"><?php echo htmlspecialchars($comment['author_name']); ?></p>
+                                            <span class="text-gray-500 text-sm">•</span>
+                                            <p class="text-gray-500 text-sm">
+                                                <?php echo date('M d, Y', strtotime($comment['created_at'])); ?>
+                                            </p>
+                                        </div>
+                                        <?php if(isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $comment['user_id'] || $video['user_id'] == $_SESSION['user_id'])): ?>
+                                            <div class="relative" data-comment-actions>
+                                                <button class="p-1 hover:bg-gray-200 rounded-full" onclick="toggleCommentMenu(<?php echo $comment['id']; ?>)">
+                                                    <svg class="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 24 24">
+                                                        <circle cx="12" cy="12" r="2" />
+                                                        <circle cx="12" cy="5" r="2" />
+                                                        <circle cx="12" cy="19" r="2" />
+                                                    </svg>
+                                                </button>
+                                                <div class="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg py-1 z-10 hidden" data-comment-menu="<?php echo $comment['id']; ?>">
+                                                    <button class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100" onclick="editCommentStart(<?php echo $comment['id']; ?>)">Edit</button>
+                                                    <form method="POST" class="inline">
+                                                        <input type="hidden" name="delete_comment" value="1">
+                                                        <input type="hidden" name="comment_id" value="<?php echo $comment['id']; ?>">
+                                                        <button type="submit" class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100">Delete</button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
                                     </div>
-                                    <p class="mt-1 text-gray-700"><?php echo nl2br(htmlspecialchars($comment['content'])); ?></p>
+                                    <div data-comment-content="<?php echo $comment['id']; ?>">
+                                        <p class="text-gray-700"><?php echo nl2br(htmlspecialchars($comment['content'])); ?></p>
+                                    </div>
+                                    <div class="hidden" data-comment-edit="<?php echo $comment['id']; ?>">
+                                        <form method="POST">
+                                            <textarea name="edit_comment" rows="3" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"><?php echo htmlspecialchars($comment['content']); ?></textarea>
+                                            <input type="hidden" name="comment_id" value="<?php echo $comment['id']; ?>">
+                                            <div class="flex justify-end space-x-2">
+                                                <button type="button" class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800" onclick="cancelEdit(<?php echo $comment['id']; ?>)">Cancel</button>
+                                                <button type="submit" class="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">Save</button>
+                                            </div>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
                         <?php endforeach; ?>
                     </div>
                 </div>
-            </div>
 
-            <!-- Sidebar -->
-            <div class="lg:col-span-1">
-                <div class="bg-white rounded-lg shadow-lg p-6">
-                    <h2 class="text-xl font-bold mb-4">Related Videos</h2>
-                    <div class="space-y-4">
-                        <?php foreach($relatedVideos as $relatedVideo): ?>
-                            <a href="?id=<?php echo $relatedVideo['id']; ?>" class="block group">
-                                <div class="flex space-x-3">
-                                    <div class="flex-shrink-0">
-                                        <div class="w-24 h-16 bg-gray-100 rounded overflow-hidden">
-                                            <!-- Video thumbnail -->
-                                            <img src="<?php echo !empty($relatedVideo['thumbnail']) ? BASE_URL . '/' . $relatedVideo['thumbnail'] : 'https://via.placeholder.com/96x64' ?>"
-                                                alt="Video thumbnail"
-                                                class="w-full h-full object-cover">
+                <!-- Sidebar -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <h2 class="text-xl font-bold mb-4">Related Videos</h2>
+                        <div class="space-y-4">
+                            <?php foreach($relatedVideos as $relatedVideo): ?>
+                                <a href="?id=<?php echo $relatedVideo['id']; ?>" class="block group">
+                                    <div class="flex space-x-3">
+                                        <div class="flex-shrink-0">
+                                            <div class="w-24 h-16 bg-gray-100 rounded overflow-hidden">
+                                                <!-- Video thumbnail -->
+                                                <img src="<?php echo !empty($relatedVideo['thumbnail']) ? BASE_URL . '/' . $relatedVideo['thumbnail'] : 'https://via.placeholder.com/96x64' ?>"
+                                                    alt="Video thumbnail"
+                                                    class="w-full h-full object-cover">
+                                            </div>
+                                        </div>
+                                        <div class="flex-1">
+                                            <h3 class="text-sm font-semibold group-hover:text-blue-600 line-clamp-2">
+                                                <?php echo htmlspecialchars($relatedVideo['title']); ?>
+                                            </h3>
+                                            <p class="text-xs text-gray-500 mt-1">
+                                                <?php echo htmlspecialchars($relatedVideo['author_name']); ?>
+                                            </p>
+                                            <p class="text-xs text-gray-500">
+                                                <?php echo number_format($relatedVideo['views']); ?> views
+                                            </p>
                                         </div>
                                     </div>
-                                    <div class="flex-1">
-                                        <h3 class="text-sm font-semibold group-hover:text-blue-600 line-clamp-2">
-                                            <?php echo htmlspecialchars($relatedVideo['title']); ?>
-                                        </h3>
-                                        <p class="text-xs text-gray-500 mt-1">
-                                            <?php echo htmlspecialchars($relatedVideo['author_name']); ?>
-                                        </p>
-                                        <p class="text-xs text-gray-500">
-                                            <?php echo number_format($relatedVideo['views']); ?> views
-                                        </p>
-                                    </div>
-                                </div>
-                            </a>
-                        <?php endforeach; ?>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -262,6 +344,42 @@ $relatedVideos = $stmt->fetchAll();
             duration: 1000,
             once: true
         });
+
+        function toggleCommentMenu(commentId) {
+            const allMenus = document.querySelectorAll('[data-comment-menu]');
+            allMenus.forEach(menu => {
+                if (menu.getAttribute('data-comment-menu') != commentId) {
+                    menu.classList.add('hidden');
+                }
+            });
+            
+            const menu = document.querySelector(`[data-comment-menu="${commentId}"]`);
+            menu.classList.toggle('hidden');
+        }
+
+        // Close menus when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('[data-comment-actions]')) {
+                document.querySelectorAll('[data-comment-menu]').forEach(menu => {
+                    menu.classList.add('hidden');
+                });
+            }
+        });
+
+        function editCommentStart(commentId) {
+            // Hide the menu
+            document.querySelector(`[data-comment-menu="${commentId}"]`).classList.add('hidden');
+            
+            // Show edit form and hide content
+            document.querySelector(`[data-comment-content="${commentId}"]`).classList.add('hidden');
+            document.querySelector(`[data-comment-edit="${commentId}"]`).classList.remove('hidden');
+        }
+
+        function cancelEdit(commentId) {
+            // Hide edit form and show content
+            document.querySelector(`[data-comment-content="${commentId}"]`).classList.remove('hidden');
+            document.querySelector(`[data-comment-edit="${commentId}"]`).classList.add('hidden');
+        }
     </script>
 </body>
 </html>

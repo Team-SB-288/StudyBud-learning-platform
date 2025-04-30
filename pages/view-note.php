@@ -109,6 +109,79 @@ if(isset($_SESSION['user_id'])) {
     $stmt->execute();
     $isBookmarked = (bool)$stmt->fetch();
 }
+
+// Handle comment submission, editing, and deletion
+if($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_SESSION['user_id'])) {
+    if(isset($_POST['comment'])) {
+        // Add new comment
+        $comment = trim($_POST['comment']);
+        if(!empty($comment)) {
+            $stmt = $conn->prepare("INSERT INTO note_comments (user_id, note_id, content) VALUES (:user_id, :note_id, :content)");
+            $stmt->bindParam(":user_id", $_SESSION['user_id']);
+            $stmt->bindParam(":note_id", $note['id']);
+            $stmt->bindParam(":content", $comment);
+            $stmt->execute();
+        }
+    } elseif(isset($_POST['edit_comment'])) {
+        // Edit existing comment
+        $commentId = $_POST['comment_id'];
+        $newContent = trim($_POST['edit_comment']);
+        
+        // Verify comment belongs to current user or note owner
+        $stmt = $conn->prepare("
+            SELECT c.* FROM note_comments c 
+            WHERE c.id = :comment_id 
+            AND (c.user_id = :user_id OR :user_id = :note_owner_id)
+        ");
+        $stmt->bindParam(":comment_id", $commentId);
+        $stmt->bindParam(":user_id", $_SESSION['user_id']);
+        $stmt->bindParam(":note_owner_id", $note['user_id']);
+        $stmt->execute();
+        
+        if($stmt->fetch() && !empty($newContent)) {
+            $stmt = $conn->prepare("UPDATE note_comments SET content = :content WHERE id = :id");
+            $stmt->bindParam(":content", $newContent);
+            $stmt->bindParam(":id", $commentId);
+            $stmt->execute();
+        }
+    } elseif(isset($_POST['delete_comment'])) {
+        // Delete comment
+        $commentId = $_POST['comment_id'];
+        
+        // Verify comment belongs to current user or note owner
+        $stmt = $conn->prepare("
+            SELECT c.* FROM note_comments c 
+            WHERE c.id = :comment_id 
+            AND (c.user_id = :user_id OR :user_id = :note_owner_id)
+        ");
+        $stmt->bindParam(":comment_id", $commentId);
+        $stmt->bindParam(":user_id", $_SESSION['user_id']);
+        $stmt->bindParam(":note_owner_id", $note['user_id']);
+        $stmt->execute();
+        
+        if($stmt->fetch()) {
+            $stmt = $conn->prepare("DELETE FROM note_comments WHERE id = :id");
+            $stmt->bindParam(":id", $commentId);
+            $stmt->execute();
+        }
+    }
+    
+    // Redirect to prevent form resubmission
+    header("Location: " . $_SERVER['REQUEST_URI']);
+    exit();
+}
+
+// Get comments
+$stmt = $conn->prepare("
+    SELECT c.*, u.name as author_name, u.profile_picture as author_profile, u.gender as author_gender
+    FROM note_comments c
+    JOIN users u ON c.user_id = u.id
+    WHERE c.note_id = :note_id
+    ORDER BY c.created_at DESC
+");
+$stmt->bindParam(":note_id", $note['id']);
+$stmt->execute();
+$comments = $stmt->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -223,6 +296,71 @@ if(isset($_SESSION['user_id'])) {
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                             </svg>
                         </a>
+                    </div>
+                </div>
+
+                <!-- Comments Section -->
+                <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
+                    <h2 class="text-2xl font-bold mb-6">Comments</h2>
+                    <?php if(isset($_SESSION['user_id'])): ?>
+                        <form method="POST" class="mb-6">
+                            <textarea name="comment" rows="3" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Add a comment..."></textarea>
+                            <button type="submit" class="mt-3 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">Post Comment</button>
+                        </form>
+                    <?php else: ?>
+                        <p class="text-gray-500">Please <a href="login.php" class="text-blue-500 hover:text-blue-600">log in</a> to post a comment.</p>
+                    <?php endif; ?>
+
+                    <div class="space-y-4">
+                        <?php foreach($comments as $comment): ?>
+                            <div class="flex items-start space-x-4" id="comment-<?php echo $comment['id']; ?>">
+                                <img src="<?php echo !empty($comment['author_profile']) ? BASE_URL . '/' . $comment['author_profile'] : BASE_URL . '/assets/images/' . ($comment['author_gender'] === 'female' ? 'female.png' : 'male.png'); ?>" 
+                                     alt="<?php echo htmlspecialchars($comment['author_name']); ?>" 
+                                     class="w-10 h-10 rounded-full object-cover">
+                                <div class="flex-1">
+                                    <div class="bg-gray-100 p-3 rounded-lg">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <h3 class="font-semibold"><?php echo htmlspecialchars($comment['author_name']); ?></h3>
+                                            <div class="flex items-center">
+                                                <p class="text-xs text-gray-500 mr-2"><?php echo date('M d, Y', strtotime($comment['created_at'])); ?></p>
+                                                <?php if(isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $comment['user_id'] || $_SESSION['user_id'] == $note['user_id'])): ?>
+                                                    <div class="relative" data-comment-actions>
+                                                        <button class="p-1 hover:bg-gray-200 rounded-full" onclick="toggleCommentMenu(<?php echo $comment['id']; ?>)">
+                                                            <svg class="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 24 24">
+                                                                <circle cx="12" cy="12" r="2" />
+                                                                <circle cx="12" cy="5" r="2" />
+                                                                <circle cx="12" cy="19" r="2" />
+                                                            </svg>
+                                                        </button>
+                                                        <div class="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg py-1 z-10 hidden" data-comment-menu="<?php echo $comment['id']; ?>">
+                                                            <button class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100" onclick="editCommentStart(<?php echo $comment['id']; ?>)">Edit</button>
+                                                            <form method="POST" class="inline">
+                                                                <input type="hidden" name="delete_comment" value="1">
+                                                                <input type="hidden" name="comment_id" value="<?php echo $comment['id']; ?>">
+                                                                <button type="submit" class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100">Delete</button>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                        <div data-comment-content="<?php echo $comment['id']; ?>">
+                                            <p class="text-gray-700"><?php echo nl2br(htmlspecialchars($comment['content'])); ?></p>
+                                        </div>
+                                        <div class="hidden" data-comment-edit="<?php echo $comment['id']; ?>">
+                                            <form method="POST">
+                                                <textarea name="edit_comment" rows="3" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"><?php echo htmlspecialchars($comment['content']); ?></textarea>
+                                                <input type="hidden" name="comment_id" value="<?php echo $comment['id']; ?>">
+                                                <div class="flex justify-end space-x-2">
+                                                    <button type="button" class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800" onclick="cancelEdit(<?php echo $comment['id']; ?>)">Cancel</button>
+                                                    <button type="submit" class="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">Save</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
                 </div>
             </div>
@@ -382,6 +520,57 @@ if(isset($_SESSION['user_id'])) {
                     }
                 });
             });
+        }
+
+        // Handle comment editing
+        function editComment(commentId) {
+            const commentContent = prompt("Edit your comment:");
+            if(commentContent !== null) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="edit_comment" value="${commentContent}">
+                    <input type="hidden" name="comment_id" value="${commentId}">
+                `;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function toggleCommentMenu(commentId) {
+            const allMenus = document.querySelectorAll('[data-comment-menu]');
+            allMenus.forEach(menu => {
+                if (menu.getAttribute('data-comment-menu') != commentId) {
+                    menu.classList.add('hidden');
+                }
+            });
+            
+            const menu = document.querySelector(`[data-comment-menu="${commentId}"]`);
+            menu.classList.toggle('hidden');
+        }
+
+        // Close menus when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('[data-comment-actions]')) {
+                document.querySelectorAll('[data-comment-menu]').forEach(menu => {
+                    menu.classList.add('hidden');
+                });
+            }
+        });
+
+        function editCommentStart(commentId) {
+            // Hide the menu
+            document.querySelector(`[data-comment-menu="${commentId}"]`).classList.add('hidden');
+            
+            // Show edit form and hide content
+            document.querySelector(`[data-comment-content="${commentId}"]`).classList.add('hidden');
+            document.querySelector(`[data-comment-edit="${commentId}"]`).classList.remove('hidden');
+        }
+
+        function cancelEdit(commentId) {
+            // Hide edit form and show content
+            document.querySelector(`[data-comment-content="${commentId}"]`).classList.remove('hidden');
+            document.querySelector(`[data-comment-edit="${commentId}"]`).classList.add('hidden');
         }
     </script>
 </body>
