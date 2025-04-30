@@ -32,6 +32,7 @@ session_start();
     </style>
 </head>
 <body class="bg-gray-50">
+    <?php include 'components/loading.php'; ?>
     <?php include 'components/navbar.php'; ?>
 
     <!-- Hero Section -->

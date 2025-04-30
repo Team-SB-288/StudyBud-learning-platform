@@ -17,6 +17,9 @@ define('UPLOAD_NOTE_PATH', 'uploads/notes/');
 define('UPLOAD_PROFILE_PATH', 'uploads/profiles/');
 define('DEFAULT_PROFILE_PICTURE', 'assets/images/default-avatar.png');
 
+// Loading component constant
+define('LOADING_COMPONENT', true);
+
 // Session settings
 define('SESSION_LIFETIME', 86400); // 24 hours
 ini_set('session.gc_maxlifetime', SESSION_LIFETIME);

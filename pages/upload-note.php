@@ -117,6 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body class="bg-gray-50">
     <?php include '../components/navbar.php'; ?>
+    <?php include '../components/loading.php'; ?>
     
     <div class="container mx-auto px-4 py-8 mt-16">
         <div class="max-w-3xl mx-auto">

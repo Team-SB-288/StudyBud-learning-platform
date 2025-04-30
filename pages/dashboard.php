@@ -49,6 +49,7 @@ $recentContent = $stmt->fetchAll();
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-gray-50">
+    <?php include '../components/loading.php'; ?>
     <?php include '../components/navbar.php'; ?>
     
     <div class="container mx-auto px-4 py-8 mt-16">

@@ -122,6 +122,7 @@ if(isset($_SESSION['user_id'])) {
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';</script>
 </head>
 <body class="bg-gray-50">
+    <?php include '../components/loading.php'; ?>
     <?php include '../components/navbar.php'; ?>
     
     <div class="container mx-auto px-4 py-8 mt-16">

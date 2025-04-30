@@ -143,6 +143,7 @@ $progressPercentage = $totalLessons > 0 ? round(($completedLessons / $totalLesso
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/plyr/3.7.8/plyr.min.css">
 </head>
 <body class="bg-gray-50">
+    <?php include '../components/loading.php'; ?>
     <?php include '../components/navbar.php'; ?>
     
     <div class="container mx-auto px-4 py-8 mt-16">
