@@ -489,15 +489,59 @@ $progressPercentage = $totalLessons > 0 ? round(($completedLessons / $totalLesso
     <div id="videoModal" class="fixed inset-0 z-50 hidden">
         <div class="absolute inset-0 bg-black bg-opacity-75"></div>
         <div class="absolute inset-0 flex items-center justify-center p-4">
-            <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl">
-                <div class="relative">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-screen-xl">
+                <div class="relative p-4">
                     <button id="closeModal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
-                    <div class="aspect-w-16 aspect-h-9">
-                        <video id="lessonPlayer" playsinline controls></video>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <!-- Video Player -->
+                        <div class="lg:col-span-8">
+                            <div class="aspect-w-16 aspect-h-9">
+                                <video id="lessonPlayer" playsinline controls class="rounded-lg"></video>
+                            </div>
+                        </div>
+                        
+                        <!-- Related Videos -->
+                        <div class="lg:col-span-4">
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h3 class="text-lg font-semibold mb-4">More From This Course</h3>
+                                <div class="space-y-4 max-h-[600px] overflow-y-auto">
+                                    <?php foreach($sections as $section): ?>
+                                        <?php foreach($section['lessons'] as $lesson): ?>
+                                            <?php if($lesson['type'] == 'video'): ?>
+                                                <a href="<?php echo BASE_URL . '/' . $lesson['file_path']; ?>" 
+                                                   class="block group" data-video="true">
+                                                    <div class="flex space-x-3">
+                                                        <div class="flex-shrink-0">
+                                                            <div class="w-32 h-20 bg-gray-200 rounded-lg flex items-center justify-center">
+                                                                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                </svg>
+                                                            </div>
+                                                        </div>
+                                                        <div class="flex-1">
+                                                            <h4 class="text-sm font-medium group-hover:text-blue-600">
+                                                                <?php echo htmlspecialchars($lesson['title']); ?>
+                                                            </h4>
+                                                            <?php if($lesson['duration']): ?>
+                                                                <p class="text-xs text-gray-500 mt-1">
+                                                                    Duration: <?php echo $lesson['duration']; ?> min
+                                                                </p>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    </div>
+                                                </a>
+                                            <?php endif; ?>
+                                        <?php endforeach; ?>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

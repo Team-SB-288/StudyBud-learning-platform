@@ -151,25 +151,26 @@ $relatedVideos = $stmt->fetchAll();
     <?php include '../components/navbar.php'; ?>
     
     <div class="container mx-auto px-4 py-8 mt-16">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Main Content -->
-            <div class="lg:col-span-2">
-                <?php if(!isset($_SESSION['user_id'])): ?>
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                        <div class="flex">
-                            <div class="flex-shrink-0">
-                                <svg class="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            </div>
-                            <div class="ml-3">
-                                <p class="text-sm text-blue-700">
-                                    You're browsing as a guest. <a href="register.php" class="font-medium underline hover:text-blue-600">Create an account</a> to comment and track your learning progress!
-                                </p>
-                            </div>
-                        </div>
+        <?php if(!isset($_SESSION['user_id'])): ?>
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
                     </div>
-                <?php endif; ?>
+                    <div class="ml-3">
+                        <p class="text-sm text-blue-700">
+                            You're browsing as a guest. <a href="register.php" class="font-medium underline hover:text-blue-600">Create an account</a> to comment and track your learning progress!
+                        </p>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Main Content -->
+            <div class="lg:col-span-8">
                 <!-- Video Player -->
                 <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
                     <div class="aspect-w-16 aspect-h-9 mb-6">
@@ -185,7 +186,7 @@ $relatedVideos = $stmt->fetchAll();
                             <img src="<?php echo !empty($video['author_profile']) ? BASE_URL . '/' . $video['author_profile'] : BASE_URL . '/assets/images/' . ($video['author_gender'] === 'female' ? 'female.png' : 'male.png'); ?>" 
                                  alt="<?php echo htmlspecialchars($video['author_name']); ?>" 
                                  class="w-12 h-12 rounded-full object-cover">
-                            <div>
+                            <div class="ml-3">
                                 <h3 class="font-semibold"><?php echo htmlspecialchars($video['author_name']); ?></h3>
                                 <p class="text-sm text-gray-500">Published on <?php echo date('M d, Y', strtotime($video['created_at'])); ?></p>
                             </div>
@@ -211,7 +212,7 @@ $relatedVideos = $stmt->fetchAll();
                 </div>
 
                 <!-- Comments Section -->
-                <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
+                <div class="bg-white rounded-lg shadow-lg p-6">
                     <h2 class="text-xl font-bold mb-4">Comments</h2>
                     
                     <?php if(isset($_SESSION['user_id'])): ?>
@@ -281,38 +282,38 @@ $relatedVideos = $stmt->fetchAll();
                         <?php endforeach; ?>
                     </div>
                 </div>
+            </div>
 
-                <!-- Sidebar -->
-                <div class="lg:col-span-1">
-                    <div class="bg-white rounded-lg shadow-lg p-6">
-                        <h2 class="text-xl font-bold mb-4">Related Videos</h2>
-                        <div class="space-y-4">
-                            <?php foreach($relatedVideos as $relatedVideo): ?>
-                                <a href="?id=<?php echo $relatedVideo['id']; ?>" class="block group">
-                                    <div class="flex space-x-3">
-                                        <div class="flex-shrink-0">
-                                            <div class="w-24 h-16 bg-gray-100 rounded overflow-hidden">
-                                                <!-- Video thumbnail -->
-                                                <img src="<?php echo !empty($relatedVideo['thumbnail']) ? BASE_URL . '/' . $relatedVideo['thumbnail'] : 'https://via.placeholder.com/96x64' ?>"
-                                                    alt="Video thumbnail"
-                                                    class="w-full h-full object-cover">
-                                            </div>
-                                        </div>
-                                        <div class="flex-1">
-                                            <h3 class="text-sm font-semibold group-hover:text-blue-600 line-clamp-2">
-                                                <?php echo htmlspecialchars($relatedVideo['title']); ?>
-                                            </h3>
-                                            <p class="text-xs text-gray-500 mt-1">
-                                                <?php echo htmlspecialchars($relatedVideo['author_name']); ?>
-                                            </p>
-                                            <p class="text-xs text-gray-500">
-                                                <?php echo number_format($relatedVideo['views']); ?> views
-                                            </p>
+            <!-- Related Videos Sidebar -->
+            <div class="lg:col-span-4">
+                <div class="bg-white rounded-lg shadow-lg p-6 sticky top-6">
+                    <h2 class="text-xl font-bold mb-4">Related Videos</h2>
+                    <div class="space-y-4">
+                        <?php foreach($relatedVideos as $relatedVideo): ?>
+                            <a href="?id=<?php echo $relatedVideo['id']; ?>" class="block group">
+                                <div class="flex space-x-3">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-24 h-16 bg-gray-100 rounded overflow-hidden">
+                                            <!-- Video thumbnail -->
+                                            <img src="<?php echo !empty($relatedVideo['thumbnail']) ? BASE_URL . '/' . $relatedVideo['thumbnail'] : 'https://via.placeholder.com/96x64' ?>"
+                                                alt="Video thumbnail"
+                                                class="w-full h-full object-cover">
                                         </div>
                                     </div>
-                                </a>
-                            <?php endforeach; ?>
-                        </div>
+                                    <div class="flex-1">
+                                        <h3 class="text-sm font-semibold group-hover:text-blue-600 line-clamp-2">
+                                            <?php echo htmlspecialchars($relatedVideo['title']); ?>
+                                        </h3>
+                                        <p class="text-xs text-gray-500 mt-1">
+                                            <?php echo htmlspecialchars($relatedVideo['author_name']); ?>
+                                        </p>
+                                        <p class="text-xs text-gray-500">
+                                            <?php echo number_format($relatedVideo['views']); ?> views
+                                        </p>
+                                    </div>
+                                </div>
+                            </a>
+                        <?php endforeach; ?>
                     </div>
                 </div>
             </div>

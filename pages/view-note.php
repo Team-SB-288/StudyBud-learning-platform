@@ -199,26 +199,26 @@ $comments = $stmt->fetchAll();
     <?php include '../components/navbar.php'; ?>
     
     <div class="container mx-auto px-4 py-8 mt-16">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Main Content -->
-            <div class="lg:col-span-2">
-                <?php if(!isset($_SESSION['user_id'])): ?>
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                        <div class="flex">
-                            <div class="flex-shrink-0">
-                                <svg class="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            </div>
-                            <div class="ml-3">
-                                <p class="text-sm text-blue-700">
-                                    You're browsing as a guest. <a href="register.php" class="font-medium underline hover:text-blue-600">Create an account</a> to bookmark notes and track your downloads!
-                                </p>
-                            </div>
-                        </div>
+        <?php if(!isset($_SESSION['user_id'])): ?>
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
                     </div>
-                <?php endif; ?>
+                    <div class="ml-3">
+                        <p class="text-sm text-blue-700">
+                            You're browsing as a guest. <a href="register.php" class="font-medium underline hover:text-blue-600">Create an account</a> to bookmark notes and track your downloads!
+                        </p>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
 
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Main Content -->
+            <div class="lg:col-span-8">
                 <!-- Note Header -->
                 <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
                     <div class="flex items-center justify-between mb-4">
@@ -281,21 +281,64 @@ $comments = $stmt->fetchAll();
                     <?php endif; ?>
                 </div>
 
-                <!-- PDF Preview -->
-                <div class="bg-white rounded-lg shadow-lg p-6">
-                    <h2 class="text-2xl font-bold mb-6">Preview</h2>
-                    <div class="border rounded-lg overflow-hidden">
-                        <div id="pdfViewer" class="w-full" style="height: 800px;"></div>
+                <!-- PDF Preview with Related Notes side by side -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <div class="lg:col-span-8 bg-white rounded-lg shadow-lg p-6">
+                        <h2 class="text-2xl font-bold mb-6">Preview</h2>
+                        <div class="border rounded-lg overflow-hidden">
+                            <div id="pdfViewer" class="w-full" style="height: 800px;"></div>
+                        </div>
+                        <div class="mt-4 flex justify-end">
+                            <a href="<?php echo BASE_URL . '/' . $note['file_path']; ?>" 
+                               class="inline-flex items-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200"
+                               download>
+                                Download PDF
+                                <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                            </a>
+                        </div>
                     </div>
-                    <div class="mt-4 flex justify-end">
-                        <a href="<?php echo BASE_URL . '/' . $note['file_path']; ?>" 
-                           class="inline-flex items-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200"
-                           download>
-                            Download PDF
-                            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                            </svg>
-                        </a>
+
+                    <!-- Related Notes -->
+                    <div class="lg:col-span-4">
+                        <div class="bg-white rounded-lg shadow-lg p-6 sticky top-6">
+                            <h2 class="text-xl font-bold mb-4">Related Notes</h2>
+                            <div class="space-y-4">
+                                <?php foreach($relatedNotes as $relatedNote): ?>
+                                    <a href="?id=<?php echo $relatedNote['id']; ?>" class="block group">
+                                        <div class="flex space-x-3">
+                                            <div class="flex-shrink-0">
+                                                <div class="w-24 h-16 bg-gray-100 rounded overflow-hidden">
+                                                    <?php if($relatedNote['thumbnail']): ?>
+                                                        <img src="<?php echo BASE_URL . '/' . $relatedNote['thumbnail']; ?>"
+                                                            alt="Note thumbnail"
+                                                            class="w-full h-full object-cover">
+                                                    <?php else: ?>
+                                                        <div class="w-full h-full flex items-center justify-center bg-gray-200">
+                                                            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                            </svg>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                            <div class="flex-1">
+                                                <h3 class="text-sm font-semibold group-hover:text-blue-600 line-clamp-2">
+                                                    <?php echo htmlspecialchars($relatedNote['title']); ?>
+                                                </h3>
+                                                <p class="text-xs text-gray-500 mt-1">
+                                                    <?php echo htmlspecialchars($relatedNote['author_name']); ?>
+                                                </p>
+                                                <p class="text-xs text-gray-500">
+                                                    <?php echo number_format($relatedNote['views']); ?> views
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -366,46 +409,7 @@ $comments = $stmt->fetchAll();
             </div>
 
             <!-- Sidebar -->
-            <div class="lg:col-span-1">
-                <!-- Related Notes -->
-                <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-                    <h2 class="text-xl font-bold mb-4">Related Notes</h2>
-                    <div class="space-y-4">
-                        <?php foreach($relatedNotes as $relatedNote): ?>
-                            <a href="?id=<?php echo $relatedNote['id']; ?>" class="block group">
-                                <div class="flex space-x-3">
-                                    <div class="flex-shrink-0">
-                                        <div class="w-24 h-16 bg-gray-100 rounded overflow-hidden">
-                                            <?php if($relatedNote['thumbnail']): ?>
-                                                <img src="<?php echo BASE_URL . '/' . $relatedNote['thumbnail']; ?>"
-                                                    alt="Note thumbnail"
-                                                    class="w-full h-full object-cover">
-                                            <?php else: ?>
-                                                <div class="w-full h-full flex items-center justify-center bg-gray-200">
-                                                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                    </svg>
-                                                </div>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
-                                    <div class="flex-1">
-                                        <h3 class="text-sm font-semibold group-hover:text-blue-600 line-clamp-2">
-                                            <?php echo htmlspecialchars($relatedNote['title']); ?>
-                                        </h3>
-                                        <p class="text-xs text-gray-500 mt-1">
-                                            <?php echo htmlspecialchars($relatedNote['author_name']); ?>
-                                        </p>
-                                        <p class="text-xs text-gray-500">
-                                            <?php echo number_format($relatedNote['views']); ?> views
-                                        </p>
-                                    </div>
-                                </div>
-                            </a>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-
+            <div class="lg:col-span-4">
                 <!-- Note Information -->
                 <div class="bg-white rounded-lg shadow-lg p-6">
                     <h2 class="text-xl font-bold mb-4">Note Information</h2>
